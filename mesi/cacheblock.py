@@ -4,10 +4,11 @@ class CacheBlock(object):
     def __init__(self, block_size=64):
         self.words = ['' for x in xrange(block_size/WORD_SIZE)]
         self.state = 'I' # MESI
+        self.block_size = block_size
     
     def insert_word(self, address):
         '''
-            Takes an address (in zero padded hex string),
+            Takes an address (in hex string),
             finds the offset in the block to insert the address.
             Also, fills up the whole block with the neighbouring addresses.
             E.g. if we have the following config: block size 8, word size 2,
@@ -17,12 +18,12 @@ class CacheBlock(object):
             [0, 2, 4, 6]
         '''
         block_offset = self._map_address_to_block_offset(address)
-        self.words[block_offset] = address
-        address_in_decimal = int(address_in_decimal, 16)
-        for x in xrange(block_offset+1, len(self.words)+1):
-            self.words[x] = hex(address_in_decimal+WORD_SIZE).replace('0x', '0000')
+        address_in_decimal = int(address, 16)
+        self.words[block_offset] = address_in_decimal
+        for x in xrange(block_offset+1, len(self.words)):
+            self.words[x] = address_in_decimal+WORD_SIZE
         for x in xrange(block_offset-1, -1, -1):
-            self.words[x] = hex(address_in_decimal-WORD_SIZE).replace('0x', '0000')
+            self.words[x] = address_in_decimal-WORD_SIZE
         
     def _map_address_to_block_offset(self, address):
         return int(address, 16) % self.block_size

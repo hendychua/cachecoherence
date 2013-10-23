@@ -1,3 +1,4 @@
+import math
 from cache import Cache
 
 FETCH_INSTRUCTION = 0
@@ -10,8 +11,8 @@ class Processor(object):
     NOT_STALLED = 0
     STALLED = 1
     
-    def __init__(self, block_size=64, cache_size=4096):
-        self.cache = Cache(block_size=block_size, cache_size=cache_size)
+    def __init__(self, associativity=1, block_size=64, cache_size=4096):
+        self.cache = Cache(associativity=associativity, block_size=block_size, cache_size=cache_size)
         self.cycles = 0
         self.latency = 0
     
@@ -40,8 +41,10 @@ class Processor(object):
 
     def snoop(self, bus_transaction_type, address):
         index = -1
-        for i, block in enumerate(self.cache.sets):
-            if address in block.words and block.state in ('M', 'E', 'S'):
+        set_index = int((math.floor(int(address, 16)/self.cache.block_size)) % len(self.cache.sets))
+        set_to_search = self.cache.sets[set_index]
+        for i, block in enumerate(set_to_search):
+            if block is not None and address in block.words and block.state in ('M', 'E', 'S'):
                 index = i
                 break
         if index > -1:
@@ -51,9 +54,9 @@ class Processor(object):
                 # by right if state is M, we need to flush to memory also.
                 # but the doc says theres a write buffer and assume there are
                 # no latencies for writing to memory, hence don't have to stall.
-                self.cache.sets[index].state == 'I'
+                set_to_search[index].state == 'I'
             elif bus_transaction_type == "BUSREAD":
-                self.cache.sets[index].state == 'S'
+                set_to_search[index].state == 'S'
             return self.INTERESTED
         else:
             # if block not in sets or state of block is I,
