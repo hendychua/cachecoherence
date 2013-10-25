@@ -74,9 +74,10 @@ def main(config):
                         return_statuses[i] = ret
                         running_processors += 1
     end_time = datetime.utcnow()
-    for processor in processors:
+    for i, processor in enumerate(processors):
         log.info("***")
         log.info("p%s total cycles needed: %s"%(processor.identifier, processor.cycles))
+        log.info("total instructions: %s"%(instructions[i].count))
         log.info("fetch instructions: %s"%(processor.fetch_instructions))
         log.info("cache hits: %s cache misses: %s"%(processor.cache.hits, processor.cache.misses))
         log.info("***")
