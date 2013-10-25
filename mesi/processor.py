@@ -1,9 +1,12 @@
 import math
+import logging
 from cache import Cache
 
 FETCH_INSTRUCTION = 0
 READ_MEMORY = 2
 WRITE_MEMORY = 3
+
+MES = ('M', 'E', 'S')
 
 class Processor(object):
     INTERESTED = 1
@@ -11,40 +14,45 @@ class Processor(object):
     NOT_STALLED = 0
     STALLED = 1
     
-    def __init__(self, associativity=1, block_size=64, cache_size=4096):
+    def __init__(self, identifier, associativity=1, block_size=64, cache_size=4096):
         self.cache = Cache(associativity=associativity, block_size=block_size, cache_size=cache_size)
         self.cycles = 0
         self.latency = 0
-    
+        self.identifier = identifier
+        self.log = logging.getLogger("p"+str(identifier))
+
     def execute(self, instruction, read_type='S'):
         # when the execute function is called, it will check if there are
         # any latencies. if self.latency != 0, self.latency will decrease by
         # 1 cycle and instruction won't be executed. If self.latency == 0,
         # the instruction will be executed.
         self.cycles += 1
+        instruction_type, address, count = instruction
         if self.latency == 0:
-            instruction_type, address = instruction.split()
             instruction_type = int(instruction_type)
             if instruction_type == FETCH_INSTRUCTION:
                 pass
-            if instruction_type in (READ_MEMORY, WRITE_MEMORY):
-                if instruction_type == READ_MEMORY:
-                    ret = self.cache.read(address, read_type)
-                elif instruction_type == WRITE_MEMORY:
-                    ret = self.cache.write(address)
+            elif instruction_type == READ_MEMORY:
+                ret = self.cache.read(address, read_type)
                 if ret == self.cache.CACHE_MISS:
                     self.latency = 10
+            elif instruction_type == WRITE_MEMORY:
+                ret = self.cache.write(address)
+                if ret == self.cache.CACHE_MISS:
+                    self.latency = 10
+            self.log.info("instruction %s not stalled"%count)
             return self.NOT_STALLED
         else:
+            self.log.info("instruction %s stalled %s"%(count, self.latency))
             self.latency -= 1
             return self.STALLED
 
     def snoop(self, bus_transaction_type, address):
         index = -1
-        set_index = int((math.floor(int(address, 16)/self.cache.block_size)) % len(self.cache.sets))
+        set_index = int((math.floor(address/self.cache.block_size)) % len(self.cache.sets))
         set_to_search = self.cache.sets[set_index]
         for i, block in enumerate(set_to_search):
-            if block is not None and address in block.words and block.state in ('M', 'E', 'S'):
+            if block is not None and address in block.words and block.state in MES:
                 index = i
                 break
         if index > -1:
@@ -57,9 +65,11 @@ class Processor(object):
                 set_to_search[index].state == 'I'
             elif bus_transaction_type == "BUSREAD":
                 set_to_search[index].state == 'S'
+            log.info("snoop result: interested in address "+address)
             return self.INTERESTED
         else:
             # if block not in sets or state of block is I,
             # just say we are not interested.
+            log.info("snoop result: NOT interested in address "+address)
             return self.NOT_INTERESTED
         

@@ -8,7 +8,7 @@ class CacheBlock(object):
     
     def insert_word(self, address):
         '''
-            Takes an address (in hex string),
+            Takes an address,
             finds the offset in the block to insert the address.
             Also, fills up the whole block with the neighbouring addresses.
             E.g. if we have the following config: block size 8, word size 2,
@@ -18,12 +18,11 @@ class CacheBlock(object):
             [0, 2, 4, 6]
         '''
         block_offset = self._map_address_to_block_offset(address)
-        address_in_decimal = int(address, 16)
-        self.words[block_offset] = address_in_decimal
+        self.words[block_offset] = address
         for x in xrange(block_offset+1, len(self.words)):
-            self.words[x] = address_in_decimal+WORD_SIZE
+            self.words[x] = address+WORD_SIZE
         for x in xrange(block_offset-1, -1, -1):
-            self.words[x] = address_in_decimal-WORD_SIZE
+            self.words[x] = address-WORD_SIZE
         
     def _map_address_to_block_offset(self, address):
-        return int(address, 16) % self.block_size
+        return address % self.block_size
