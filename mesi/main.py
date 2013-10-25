@@ -26,7 +26,7 @@ def main(config):
         instruction_file = path+prefix+str(i+1)+".prg"
         log.info("instruction_file: %s"%instruction_file)
         instructions.append(Instruction(instruction_file))
-        proc = Processor(i, config.associativity, config.block_size, config.cache_size)
+        proc = Processor(i, config.protocol, config.associativity, config.block_size, config.cache_size)
         processors.append(proc)
     log.info("Finished loading processors and instructions.")
     
@@ -36,6 +36,8 @@ def main(config):
     while running_processors > 0:
         running_processors = 0
         for i,processor in enumerate(processors):
+            # TODO: if cache miss, can still continue to execute fetch instructions
+            # TODO: snooping protocols is not correct. need fix
             if return_statuses[i] == processor.NOT_STALLED:
                 if instructions[i].ended is False:
                     instruction = instructions[i].next()
