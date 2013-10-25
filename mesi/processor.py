@@ -18,6 +18,7 @@ class Processor(object):
         self.cache = Cache(associativity=associativity, block_size=block_size, cache_size=cache_size)
         self.cycles = 0
         self.latency = 0
+        self.fetch_instructions = 0
         self.identifier = identifier
         self.log = logging.getLogger("p"+str(identifier))
 
@@ -31,7 +32,7 @@ class Processor(object):
         if self.latency == 0:
             instruction_type = int(instruction_type)
             if instruction_type == FETCH_INSTRUCTION:
-                pass
+                self.fetch_instructions += 1
             elif instruction_type == READ_MEMORY:
                 ret = self.cache.read(address, read_type)
                 if ret == self.cache.CACHE_MISS:
@@ -40,10 +41,10 @@ class Processor(object):
                 ret = self.cache.write(address)
                 if ret == self.cache.CACHE_MISS:
                     self.latency = 10
-            self.log.info("instruction %s not stalled"%count)
+            self.log.debug("instruction %s not stalled"%count)
             return self.NOT_STALLED
         else:
-            self.log.info("instruction %s stalled %s"%(count, self.latency))
+            self.log.debug("instruction %s stalled %s"%(count, self.latency))
             self.latency -= 1
             return self.STALLED
 
@@ -65,11 +66,11 @@ class Processor(object):
                 set_to_search[index].state == 'I'
             elif bus_transaction_type == "BUSREAD":
                 set_to_search[index].state == 'S'
-            log.info("snoop result: interested in address "+address)
+            self.log.debug("snoop result: interested in address "+str(address))
             return self.INTERESTED
         else:
             # if block not in sets or state of block is I,
             # just say we are not interested.
-            log.info("snoop result: NOT interested in address "+address)
+            self.log.debug("snoop result: NOT interested in address "+str(address))
             return self.NOT_INTERESTED
         

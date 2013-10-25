@@ -24,13 +24,14 @@ def main(config):
     instructions = []
     for i in xrange(config.num_processors):
         instruction_file = path+prefix+str(i+1)+".prg"
+        log.info("instruction_file: %s"%instruction_file)
         instructions.append(Instruction(instruction_file))
         proc = Processor(i, config.associativity, config.block_size, config.cache_size)
         processors.append(proc)
     log.info("Finished loading processors and instructions.")
     
     running_processors = config.num_processors
-    return_statuses = [0, 0, 0, 0]
+    return_statuses = [0 for k in xrange(8)]
     start_time = datetime.utcnow()
     while running_processors > 0:
         running_processors = 0
@@ -45,11 +46,11 @@ def main(config):
                             for x,p in enumerate(processors):
                                 if x!=i:
                                     snoop_reports.append(p.snoop('BUSREAD', instruction[1]))
-                            if proc.INTERESTED in snoop_reports:
-                                ret = proc.execute(instruction, read_type='S')
+                            if processor.INTERESTED in snoop_reports:
+                                ret = processor.execute(instruction, read_type='S')
                             else:
                                 # no one else is interested. can read as exclusive
-                                ret = proc.execute(instruction, read_type='E')
+                                ret = processor.execute(instruction, read_type='E')
 
                         elif instruction[0] == WRITE_MEMORY:
                             # for BUSREAD_X, we just snoop to tell others to invalidate their copy,
@@ -58,10 +59,10 @@ def main(config):
                             for x,p in enumerate(processors):
                                 if x!=i:
                                     snoop_reports.append(p.snoop('BUSREAD', instruction[1]))
-                            ret = proc.execute(instruction)
+                            ret = processor.execute(instruction)
 
                         elif instruction[0] == FETCH_INSTRUCTION:
-                            ret = proc.execute(instruction)
+                            ret = processor.execute(instruction)
                         return_statuses[i] = ret
                         running_processors += 1
                     
@@ -69,13 +70,14 @@ def main(config):
                 if instructions[i].ended is False:
                     instruction = instructions[i].curr
                     if instruction:
-                        ret = proc.execute(instruction)
+                        ret = processor.execute(instruction)
                         return_statuses[i] = ret
                         running_processors += 1
     end_time = datetime.utcnow()
     for processor in processors:
         log.info("***")
         log.info("p%s total cycles needed: %s"%(processor.identifier, processor.cycles))
+        log.info("fetch instructions: %s"%(processor.fetch_instructions))
         log.info("cache hits: %s cache misses: %s"%(processor.cache.hits, processor.cache.misses))
         log.info("***")
     log.info("start time %s"%start_time.strftime("%d/%m/%Y %H:%M"))
