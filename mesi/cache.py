@@ -4,7 +4,9 @@ from cacheblock import CacheBlock
 MES = ('M', 'E', 'S')
 
 class Cache(object):
-    CACHE_HIT = 1
+    CACHE_HIT_SHARED = 3
+    CACHE_HIT_MODIFIED = 2
+    CACHE_HIT_EXCLUSIVE = 1
     CACHE_MISS = 0
     
     def __init__(self, associativity=1, block_size=64, cache_size=4096):
@@ -15,45 +17,37 @@ class Cache(object):
         self.misses = 0 #hits + misses = accesses
         self.block_size = block_size
     
-    def read(self, address, read_type='S'):
-        # caller of this method should check return type.
-        # if its a CACHE_MISS, caller is responsible for necessary action
-        # e.g. stall for 10 cycles.
+    def is_address_present(self, address, update_hits_misses_count=False):
         self.accesses += 1
         set_index = int((math.floor(address/self.block_size)) % len(self.sets))
         blockset = self.sets[set_index]
         for block in blockset:
             if block is not None and address in block.words and block.state in MES:
-                self.hits += 1
-                return self.CACHE_HIT
+                if update_hits_misses_count:
+                    self.hits += 1
+                if block.state == "M":
+                    return self.CACHE_HIT_MODIFIED
+                elif block.state == "E":
+                    return self.CACHE_HIT_EXCLUSIVE
+                elif block.state == "S":
+                    return self.CACHE_HIT_SHARED
         else:
             # it is a miss if the block is not found or the state is I.
-            self.misses += 1
-            newblock = CacheBlock(self.block_size)
-            newblock.insert_word(address)
-            newblock.state = read_type # E or S
-            self._insert_block(newblock)
+            if update_hits_misses_count:
+                self.misses += 1
             return self.CACHE_MISS
+    
+    def read(self, address, read_type="S"):
+        newblock = CacheBlock(self.block_size)
+        newblock.insert_word(address)
+        newblock.state = read_type # E or S
+        self._insert_block(newblock)
 
     def write(self, address):
-        self.accesses += 1
-        set_index = int((math.floor(address/self.block_size)) % len(self.sets))
-        set_to_search = self.sets[set_index]
-        for block in set_to_search:
-            if block is not None and address in block.words and block.state in MES:
-                block.state = 'M'
-                self.hits += 1
-                return self.CACHE_HIT
-        else:
-            # caller of this method should check return type.
-            # if its a CACHE_MISS, caller is responsible for necessary action
-            # e.g. stall for 10 cycles.
-            self.misses += 1
-            newblock = CacheBlock(self.block_size)
-            newblock.insert_word(address)
-            newblock.state = 'M'
-            self._insert_block(newblock)
-            return self.CACHE_MISS
+        newblock = CacheBlock(self.block_size)
+        newblock.insert_word(address)
+        newblock.state = 'M'
+        self._insert_block(newblock)
 
     def _insert_block(self, cache_block):
         # first word of the cache_block must be filled with the address

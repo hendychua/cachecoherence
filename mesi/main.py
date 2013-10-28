@@ -31,50 +31,45 @@ def main(config):
     log.info("Finished loading processors and instructions.")
     
     running_processors = config.num_processors
-    return_statuses = [0 for k in xrange(8)]
     start_time = datetime.utcnow()
     while running_processors > 0:
         running_processors = 0
         for i,processor in enumerate(processors):
-            # TODO: if cache miss, can still continue to execute fetch instructions
-            # TODO: snooping protocols is not correct. need fix
-            if return_statuses[i] == processor.NOT_STALLED:
+            if processor.stall_status == processor.NOT_STALLED:
                 if instructions[i].ended is False:
                     instruction = instructions[i].next()
                     if instruction:
-                        ret = None 
-                        if instruction[0] == READ_MEMORY:
+                        bus_transaction, address = processor.check_for_bus_transaction_needed(instruction)
+                        if bus_transaction == processor.NO_BUS:
+                            # no need to do send bus transactions
+                            processor.execute(instruction)
+                        elif bus_transaction == processor.BUS_READ:
                             snoop_reports = []
                             for x,p in enumerate(processors):
                                 if x!=i:
-                                    snoop_reports.append(p.snoop('BUSREAD', instruction[1]))
+                                    snoop_reports.append(p.snoop(bus_transaction, address))
                             if processor.INTERESTED in snoop_reports:
-                                ret = processor.execute(instruction, read_type='S')
+                                processor.execute(instruction, read_type='S')
                             else:
-                                # no one else is interested. can read as exclusive
-                                ret = processor.execute(instruction, read_type='E')
-
-                        elif instruction[0] == WRITE_MEMORY:
-                            # for BUSREAD_X, we just snoop to tell others to invalidate their copy,
-                            # so we don't really have to check the snoop reports for anything
+                                # no one is interested, we read as exclusive
+                                processor.execute(instruction, read_type='E')
+                        
+                        elif bus_transaction == processor.BUS_READ_EXCLUSIVE:
                             snoop_reports = []
                             for x,p in enumerate(processors):
                                 if x!=i:
-                                    snoop_reports.append(p.snoop('BUSREAD', instruction[1]))
-                            ret = processor.execute(instruction)
-
-                        elif instruction[0] == FETCH_INSTRUCTION:
-                            ret = processor.execute(instruction)
-                        return_statuses[i] = ret
+                                    snoop_reports.append(p.snoop(bus_transaction, address))
+                            # for BUS_READ_EXCLUSIVE, we just want to invalidate other copies
+                            # hence no need to check if anyone is interested
+                            processor.execute(instruction)
+                        
                         running_processors += 1
-                    
-            elif return_statuses[i] == processor.STALLED:
-                if instructions[i].ended is False:
-                    instruction = instructions[i].curr
-                    if instruction:
-                        ret = processor.execute(instruction)
-                        return_statuses[i] = ret
-                        running_processors += 1
+            
+            elif processor.stall_status == processor.STALLED:
+                # pass in empty as we just want the cycle to go through and the processor to reduce its latency
+                processor.execute("")
+                running_processors += 1
+                        
     end_time = datetime.utcnow()
     for i, processor in enumerate(processors):
         log.info("***")

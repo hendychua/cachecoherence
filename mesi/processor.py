@@ -14,6 +14,10 @@ class Processor(object):
     NOT_STALLED = 0
     STALLED = 1
     
+    NO_BUS = 0
+    BUS_READ = 1
+    BUS_READ_EXCLUSIVE = 2
+    
     def __init__(self, identifier, protocol="MESI", associativity=1, block_size=64, cache_size=4096):
         self.cache = Cache(associativity=associativity, block_size=block_size, cache_size=cache_size)
         self.cycles = 0
@@ -22,36 +26,74 @@ class Processor(object):
         self.identifier = identifier
         self.protocol = protocol
         self.log = logging.getLogger("p"+str(identifier))
+        self.stall_status = self.NOT_STALLED
+    
+    def check_for_bus_transaction_needed(self, instruction):
+        instruction_type, address, count = instruction
+        instruction_type = int(instruction_type)
+        if instruction_type == FETCH_INSTRUCTION:
+            # fetch industrution, no need for bus transactions
+            return (self.NO_BUS, address)
+            
+        elif instruction_type == READ_MEMORY:
+            ret = self.cache.is_address_present(address, update_hits_misses_count=True)
+            if ret == self.cache.CACHE_MISS:
+                return (self.BUS_READ, address)
+            else:
+                return (self.NO_BUS, address)
+                    
+        elif instruction_type == WRITE_MEMORY:
+            ret = self.cache.is_address_present(address, update_hits_misses_count=True)
+            if ret == self.cache.CACHE_MISS:
+                return (self.BUS_READ_EXCLUSIVE, address)
+            elif ret == self.cache.CACHE_HIT_MODIFIED:
+                return (self.NO_BUS, address)
+            elif ret == self.cache.CACHE_HIT_EXCLUSIVE:
+                return (self.NO_BUS, address)
+            elif ret == self.cache.CACHE_HIT_SHARED:
+                return (self.BUS_READ_EXCLUSIVE, address)
 
-    def execute(self, instruction, read_type='S'):
+    def execute(self, instruction, read_type="S"):
         # when the execute function is called, it will check if there are
         # any latencies. if self.latency != 0, self.latency will decrease by
         # 1 cycle and instruction won't be executed. If self.latency == 0,
         # the instruction will be executed.
         self.cycles += 1
-        instruction_type, address, count = instruction
-        if self.latency == 0:
+
+        if self.latency > 0:
+            self.latency -= 1
+            if self.latency == 0:
+                self.stall_status = self.NOT_STALLED
+            else:
+                self.stall_status = self.STALLED
+        else:
+            instruction_type, address, count = instruction
             instruction_type = int(instruction_type)
+            
             if instruction_type == FETCH_INSTRUCTION:
                 self.fetch_instructions += 1
+                self.stall_status = self.NOT_STALLED
+            
             elif instruction_type == READ_MEMORY:
-                ret = self.cache.read(address, read_type)
+                ret = self.cache.is_address_present(address)
+                self.cache.read(address, read_type)
                 if ret == self.cache.CACHE_MISS:
                     self.latency = 10
+                    self.stall_status = self.STALLED
+                else:
+                    self.stall_status = self.NOT_STALLED
+                    
             elif instruction_type == WRITE_MEMORY:
-                ret = self.cache.write(address)
+                ret = self.cache.is_address_present(address)
+                self.cache.write(address)
                 if ret == self.cache.CACHE_MISS:
                     self.latency = 10
-            self.log.debug("instruction %s not stalled"%count)
-            return self.NOT_STALLED
-        else:
-            self.log.debug("instruction %s stalled %s"%(count, self.latency))
-            self.latency -= 1
-            return self.STALLED
+                    self.stall_status = self.STALLED
+                else:
+                    self.stall_status = self.NOT_STALLED
 
     def snoop(self, bus_transaction_type, address):
         if self.protocol == "MESI":
-            # TODO: MESI protocol not correct. need to fix
             index = -1
             set_index = int((math.floor(address/self.cache.block_size)) % len(self.cache.sets))
             set_to_search = self.cache.sets[set_index]
@@ -62,12 +104,12 @@ class Processor(object):
             if index > -1:
                 # if block is found in set and state is either M, E or S,
                 # we indicate interest
-                if bus_transaction_type == "BUSREAD_X":
+                if bus_transaction_type == self.BUS_READ_EXCLUSIVE:
                     # by right if state is M, we need to flush to memory also.
                     # but the doc says theres a write buffer and assume there are
                     # no latencies for writing to memory, hence don't have to stall.
                     set_to_search[index].state == 'I'
-                elif bus_transaction_type == "BUSREAD":
+                elif bus_transaction_type == self.BUS_READ:
                     set_to_search[index].state == 'S'
                 self.log.debug("snoop result: interested in address "+str(address))
                 return self.INTERESTED
@@ -76,6 +118,7 @@ class Processor(object):
                 # just say we are not interested.
                 self.log.debug("snoop result: NOT interested in address "+str(address))
                 return self.NOT_INTERESTED
+        
         elif self.protocol == "DRAGON":
             # TODO
             pass
