@@ -22,7 +22,6 @@ class Processor(object):
         self.cache = Cache(associativity=associativity, block_size=block_size, cache_size=cache_size)
         self.cycles = 0
         self.latency = 0
-        self.fetch_instructions = 0
         self.bus_transactions_count = [0, 0] # BUS_READ & BUS_READ_EXCLUSIVE respectively
         self.identifier = identifier
         self.protocol = protocol
@@ -32,11 +31,12 @@ class Processor(object):
     def check_for_bus_transaction_needed(self, instruction):
         instruction_type, address, count = instruction
         instruction_type = int(instruction_type)
-        if instruction_type == FETCH_INSTRUCTION:
-            # fetch industrution, no need for bus transactions
-            return (self.NO_BUS, address)
+        # no need since we are not executing fetch instructions
+        # if instruction_type == FETCH_INSTRUCTION:
+        #     # fetch industrution, no need for bus transactions
+        #     return (self.NO_BUS, address)
             
-        elif instruction_type == READ_MEMORY:
+        if instruction_type == READ_MEMORY:
             ret = self.cache.is_address_present(address, update_hits_misses_count=True)
             if ret == self.cache.CACHE_MISS:
                 self.bus_transactions_count[0] += 1
@@ -62,8 +62,8 @@ class Processor(object):
         # any latencies. if self.latency != 0, self.latency will decrease by
         # 1 cycle and instruction won't be executed. If self.latency == 0,
         # the instruction will be executed.
+        
         self.cycles += 1
-
         if self.latency > 0:
             self.latency -= 1
             if self.latency == 0:
@@ -74,11 +74,11 @@ class Processor(object):
             instruction_type, address, count = instruction
             instruction_type = int(instruction_type)
             
-            if instruction_type == FETCH_INSTRUCTION:
-                self.fetch_instructions += 1
-                self.stall_status = self.NOT_STALLED
-            
-            elif instruction_type == READ_MEMORY:
+            # no need since we are not executing fetch instructions
+            # if instruction_type == FETCH_INSTRUCTION:
+            #     self.stall_status = self.NOT_STALLED
+
+            if instruction_type == READ_MEMORY:
                 ret = self.cache.is_address_present(address)
                 self.cache.read(address, read_type)
                 if ret == self.cache.CACHE_MISS:

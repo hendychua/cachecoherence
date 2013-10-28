@@ -75,7 +75,6 @@ def main(config):
         log.info("***")
         log.info("p%s total cycles needed: %s"%(processor.identifier, processor.cycles))
         log.info("total instructions: %s"%(instructions[i].count))
-        log.info("fetch instructions: %s"%(processor.fetch_instructions))
         log.info("bus read transactions sent: %s"%processor.bus_transactions_count[0])
         log.info("bus read exclusive transactions sent: %s"%processor.bus_transactions_count[1])
         log.info("cache hits: %s cache misses: %s"%(processor.cache.hits, processor.cache.misses))
