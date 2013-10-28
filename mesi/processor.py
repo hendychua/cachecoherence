@@ -23,6 +23,7 @@ class Processor(object):
         self.cycles = 0
         self.latency = 0
         self.fetch_instructions = 0
+        self.bus_transactions_count = [0, 0] # BUS_READ & BUS_READ_EXCLUSIVE respectively
         self.identifier = identifier
         self.protocol = protocol
         self.log = logging.getLogger("p"+str(identifier))
@@ -38,6 +39,7 @@ class Processor(object):
         elif instruction_type == READ_MEMORY:
             ret = self.cache.is_address_present(address, update_hits_misses_count=True)
             if ret == self.cache.CACHE_MISS:
+                self.bus_transactions_count[0] += 1
                 return (self.BUS_READ, address)
             else:
                 return (self.NO_BUS, address)
@@ -45,12 +47,14 @@ class Processor(object):
         elif instruction_type == WRITE_MEMORY:
             ret = self.cache.is_address_present(address, update_hits_misses_count=True)
             if ret == self.cache.CACHE_MISS:
+                self.bus_transactions_count[1] += 1
                 return (self.BUS_READ_EXCLUSIVE, address)
             elif ret == self.cache.CACHE_HIT_MODIFIED:
                 return (self.NO_BUS, address)
             elif ret == self.cache.CACHE_HIT_EXCLUSIVE:
                 return (self.NO_BUS, address)
             elif ret == self.cache.CACHE_HIT_SHARED:
+                self.bus_transactions_count[1] += 1
                 return (self.BUS_READ_EXCLUSIVE, address)
 
     def execute(self, instruction, read_type="S"):
