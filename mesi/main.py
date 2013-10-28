@@ -77,6 +77,7 @@ def main(config):
         log.info("total instructions: %s"%(instructions[i].count))
         log.info("fetch instructions: %s"%(processor.fetch_instructions))
         log.info("cache hits: %s cache misses: %s"%(processor.cache.hits, processor.cache.misses))
+        log.info("hit ratio: %s miss ratio: %s"%(float(processor.cache.hits)/processor.cache.accesses, float(processor.cache.misses)/processor.cache.accesses))
         log.info("***")
     log.info("start time %s"%start_time.strftime("%d/%m/%Y %H:%M"))
     log.info("end time %s"%end_time.strftime("%d/%m/%Y %H:%M"))

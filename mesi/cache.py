@@ -18,7 +18,8 @@ class Cache(object):
         self.block_size = block_size
     
     def is_address_present(self, address, update_hits_misses_count=False):
-        self.accesses += 1
+        if update_hits_misses_count:
+            self.accesses += 1
         set_index = int((math.floor(address/self.block_size)) % len(self.sets))
         blockset = self.sets[set_index]
         for block in blockset:
