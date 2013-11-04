@@ -1,3 +1,5 @@
+from datetime import datetime
+
 WORD_SIZE = 2 # bytes
 
 class CacheBlock(object):
@@ -5,6 +7,7 @@ class CacheBlock(object):
         self.words = ['' for x in xrange(block_size/WORD_SIZE)]
         self.state = 'I' # MESI
         self.block_size = block_size
+        self.hit_time = datetime.utcnow()
     
     def insert_word(self, address):
         '''
@@ -23,6 +26,7 @@ class CacheBlock(object):
             self.words[x] = address+WORD_SIZE
         for x in xrange(block_offset-1, -1, -1):
             self.words[x] = address-WORD_SIZE
+        self.hit_time = datetime.utcnow()
         
     def _map_address_to_block_offset(self, address):
         return address % self.block_size

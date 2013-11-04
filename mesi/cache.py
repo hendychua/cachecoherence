@@ -1,4 +1,5 @@
 import math
+from datetime import datetime
 from cacheblock import CacheBlock
 
 MES = ('M', 'E', 'S')
@@ -54,11 +55,18 @@ class Cache(object):
         # first word of the cache_block must be filled with the address
         # cos that is the address I use to get the set index
         set_index = int((math.floor(cache_block.words[0]/self.block_size)) % len(self.sets)) #address passed in is in decimal
-        set_to_insert = self.sets[set_index]
         i = 0
-        for x, block in enumerate(set_to_insert):
+        found_empty_set = False
+        for x, block in enumerate(self.sets[set_index]):
             if block is None:
                 i = x
+                found_empty_set = True
                 break
-        set_to_insert[i] = cache_block
+        if found_empty_set is False:
+            lru_time = self.sets[set_index][0].hit_time
+            for x, block in enumerate(self.sets[set_index]):
+                if block.hit_time < lru_time:
+                    lru_time = block.hit_time
+                    i = x
+        self.sets[set_index][i] = cache_block
         
