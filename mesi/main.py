@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Description')
     parser.add_argument('protocol', type=str, help='Cache Coherence Protocol', nargs='?', default='MESI', choices=['MESI', 'DRAGON'])
     parser.add_argument('input_file', type=str, help='Input Benchmark Name', nargs='?', default='FFT', choices=['WEATHER', 'FFT'])
-    parser.add_argument('num_processors', type=int, help='Number of Processors', nargs='?', default=1)
+    parser.add_argument('num_processors', type=int, help='Number of Processors', nargs='?', default=4)
     parser.add_argument('cache_size', type=int, help='Cache Size in Bytes', nargs='?', default=4096)
     parser.add_argument('associativity', type=int, help='Associativity of the cache', nargs='?', default=1)
     parser.add_argument('block_size', type=int, help='Block Size in Bytes', nargs='?', default=64)
