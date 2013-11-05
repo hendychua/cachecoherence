@@ -80,20 +80,22 @@ class Processor(object):
 
             if instruction_type == READ_MEMORY:
                 ret = self.cache.is_address_present(address)
-                self.cache.read(address, read_type)
                 if ret == self.cache.CACHE_MISS:
+                    self.cache.read(address, read_type)
                     self.latency = 10
                     self.stall_status = self.STALLED
                 else:
+                    self.cache.read(address, read_type, update_lru_only=True)
                     self.stall_status = self.NOT_STALLED
                     
             elif instruction_type == WRITE_MEMORY:
                 ret = self.cache.is_address_present(address)
-                self.cache.write(address)
                 if ret == self.cache.CACHE_MISS:
+                    self.cache.write(address)
                     self.latency = 10
                     self.stall_status = self.STALLED
                 else:
+                    self.cache.write(address, update_lru_only=True)
                     self.stall_status = self.NOT_STALLED
 
     def snoop(self, bus_transaction_type, address):

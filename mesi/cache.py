@@ -39,18 +39,32 @@ class Cache(object):
                 self.misses += 1
             return self.CACHE_MISS
     
-    def read(self, address, read_type="S"):
-        newblock = CacheBlock(self.block_size)
-        newblock.insert_word(address)
-        newblock.state = read_type # E or S
-        self._insert_block(newblock)
+    def read(self, address, read_type="S", update_lru_only=False):
+        if update_lru_only is False:
+            newblock = CacheBlock(self.block_size)
+            newblock.insert_word(address)
+            newblock.state = read_type # E or S
+            self._insert_block(newblock)
+        else:
+            set_index = int((math.floor(address/self.block_size)) % len(self.sets))
+            for block in self.sets[set_index]:
+                if block is not None and address in block.words:
+                    block.hit_time = datetime.utcnow()
+                    return
 
-    def write(self, address):
-        newblock = CacheBlock(self.block_size)
-        newblock.insert_word(address)
-        newblock.state = 'M'
-        self._insert_block(newblock)
-
+    def write(self, address, update_lru_only=False):
+        if update_lru_only is False:
+            newblock = CacheBlock(self.block_size)
+            newblock.insert_word(address)
+            newblock.state = 'M'
+            self._insert_block(newblock)
+        else:
+            set_index = int((math.floor(address/self.block_size)) % len(self.sets))
+            for block in self.sets[set_index]:
+                if block is not None and address in block.words:
+                    block.hit_time = datetime.utcnow()
+                    return
+                
     def _insert_block(self, cache_block):
         # first word of the cache_block must be filled with the address
         # cos that is the address I use to get the set index
