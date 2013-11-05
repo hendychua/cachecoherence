@@ -31,32 +31,32 @@ class Processor(object):
     def check_for_bus_transaction_needed(self, instruction):
         instruction_type, address, count = instruction
         instruction_type = int(instruction_type)
-        # no need since we are not executing fetch instructions
-        # if instruction_type == FETCH_INSTRUCTION:
-        #     # fetch industrution, no need for bus transactions
-        #     return (self.NO_BUS, address)
-            
-        if instruction_type == READ_MEMORY:
-            ret = self.cache.is_address_present(address, update_hits_misses_count=True)
-            if ret == self.cache.CACHE_MISS:
-                self.bus_transactions_count[0] += 1
-                return (self.BUS_READ, address)
-            else:
-                return (self.NO_BUS, address)
+        
+        if self.protocol.upper() == "MESI":
+            if instruction_type == READ_MEMORY:
+                ret = self.cache.is_address_present(address, update_hits_misses_count=True)
+                if ret == self.cache.CACHE_MISS:
+                    self.bus_transactions_count[0] += 1
+                    return (self.BUS_READ, address)
+                else:
+                    return (self.NO_BUS, address)
                     
-        elif instruction_type == WRITE_MEMORY:
-            ret = self.cache.is_address_present(address, update_hits_misses_count=True)
-            if ret == self.cache.CACHE_MISS:
-                self.bus_transactions_count[1] += 1
-                return (self.BUS_READ_EXCLUSIVE, address)
-            elif ret == self.cache.CACHE_HIT_MODIFIED:
-                return (self.NO_BUS, address)
-            elif ret == self.cache.CACHE_HIT_EXCLUSIVE:
-                return (self.NO_BUS, address)
-            elif ret == self.cache.CACHE_HIT_SHARED:
-                self.bus_transactions_count[1] += 1
-                return (self.BUS_READ_EXCLUSIVE, address)
-
+            elif instruction_type == WRITE_MEMORY:
+                ret = self.cache.is_address_present(address, update_hits_misses_count=True)
+                if ret == self.cache.CACHE_MISS:
+                    self.bus_transactions_count[1] += 1
+                    return (self.BUS_READ_EXCLUSIVE, address)
+                elif ret == self.cache.CACHE_HIT_MODIFIED:
+                    return (self.NO_BUS, address)
+                elif ret == self.cache.CACHE_HIT_EXCLUSIVE:
+                    return (self.NO_BUS, address)
+                elif ret == self.cache.CACHE_HIT_SHARED:
+                    self.bus_transactions_count[1] += 1
+                    return (self.BUS_READ_EXCLUSIVE, address)
+        elif self.protocol.upper() == "DRAGON":
+            #TODO: DRAGON
+            pass
+        
     def execute(self, instruction, read_type="S"):
         # when the execute function is called, it will check if there are
         # any latencies. if self.latency != 0, self.latency will decrease by
@@ -97,7 +97,7 @@ class Processor(object):
                     self.stall_status = self.NOT_STALLED
 
     def snoop(self, bus_transaction_type, address):
-        if self.protocol == "MESI":
+        if self.protocol.upper() == "MESI":
             index = -1
             set_index = int((math.floor(address/self.cache.block_size)) % len(self.cache.sets))
             set_to_search = self.cache.sets[set_index]
@@ -123,7 +123,7 @@ class Processor(object):
                 self.log.debug("snoop result: NOT interested in address "+str(address))
                 return self.NOT_INTERESTED
         
-        elif self.protocol == "DRAGON":
-            # TODO
+        elif self.protocol.upper() == "DRAGON":
+            # TODO: DRAGON
             pass
         
